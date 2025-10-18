@@ -6,7 +6,7 @@ import dotenv from "dotenv"
 import path from "path"
 import { fileURLToPath } from "url"
 
-// Import routes (Ensure these files exist in ./backend/routes/)
+// Import routes
 import userRoutes from "./backend/routes/userRoutes.js"
 import productRoutes from "./backend/routes/productRoutes.js"
 import recommendationRoutes from "./backend/routes/recommendationRoutes.js"
@@ -25,11 +25,10 @@ app.use(cors())
 app.use(express.json({ limit: "50mb" }))
 app.use(express.urlencoded({ limit: "50mb", extended: true }))
 
-// 1. Serve static files from frontend build
+// Serve static files from frontend build
 app.use(express.static(path.join(__dirname, "frontend/build")))
 
-// 2. API Routes
-// These must be defined BEFORE the catch-all for the React index.html
+// API Routes
 app.use("/api/user", userRoutes)
 app.use("/api/products", productRoutes)
 app.use("/api/recommend", recommendationRoutes)
@@ -41,23 +40,17 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "FitLook server is running" })
 })
 
-// ⭐ FIX: Explicitly handle the widget path for the iframe source
+// ⭐ ADDED: Explicitly serve index.html for the /widget route
 app.get("/widget", (req, res) => {
-  // This serves the React app's entry point for the iframe
   res.sendFile(path.join(__dirname, "frontend/build/index.html"))
 })
 
 
-// 3. Serve React app for all other GET routes (The final catch-all)
-// We must ensure this does not catch POST requests to /api/
+// Serve React app for all other routes (The final catch-all)
 app.use((req, res) => {
-    // If the request URL starts with /api/, it means no API route matched (404 API)
-    // or it's a method other than GET (like POST) that should've been handled above.
-    // However, for a robust SPA catch-all, we rely on the Vercel routing to handle /api.
-    // This part should only serve the index.html for unknown frontend routes.
-    
-    // For simplicity and to fix the 404 issue caused by the original placement:
-    res.sendFile(path.join(__dirname, "frontend/build/index.html"))
+  // NOTE: This should technically not be hit by API calls due to the vercel.json config, 
+  // but it ensures the SPA routing works for the main app.
+  res.sendFile(path.join(__dirname, "frontend/build/index.html"))
 })
 
 
