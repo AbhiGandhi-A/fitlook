@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { saveUserProfile } from "../services/apiClient"
 import "../styles/UserDetailsForm.css"
 
@@ -16,17 +16,12 @@ function UserDetailsForm({ onSubmit }) {
     imagePreview: null,
   })
 
+  // State to track if a model image is being used (not strictly necessary but good for tracking)
   const [useModelImage, setUseModelImage] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  // Handle form input changes
-  const handleInputChange = (e) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }))
-  }
+  // Ref to access the file input element
+  const fileInputRef = useRef(null)
 
   // Handle image upload
   const handleImageUpload = (e) => {
@@ -41,13 +36,26 @@ function UserDetailsForm({ onSubmit }) {
         }))
       }
       reader.readAsDataURL(file)
+      setUseModelImage(false) // User uploaded a custom image, so clear model image flag
+    } else {
+      // Clear image if the user cancels file selection
+      setFormData((prev) => ({
+        ...prev,
+        image: null,
+        imagePreview: null,
+      }))
     }
   }
 
   // Handle model image selection
   const handleModelImageSelect = (modelType) => {
-    // Use public folder path
-    const modelPath = modelType === "male" ? "/male-model.jpg" : "/female-model.jpg"
+    // Clear the file input's value when a model image is selected
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""
+    }
+    
+    // **FIXED: Changed .jpg to .png to match the image source used in the JSX**
+    const modelPath = modelType === "male" ? "/male-model.png" : "/female-model.png"
 
     // Create an image element to load and convert to base64
     const img = new Image()
@@ -59,17 +67,27 @@ function UserDetailsForm({ onSubmit }) {
       canvas.height = img.height
       const ctx = canvas.getContext("2d")
       ctx.drawImage(img, 0, 0)
-      const base64 = canvas.toDataURL("image/jpeg")
+      
+      // Use 'image/png' if the source is .png, or keep 'image/jpeg' if the server converts it, 
+      // but sticking to 'image/jpeg' is generally safer for base64 if quality/size isn't critical.
+      // Let's keep 'image/jpeg' for consistency in data format unless a specific PNG is required.
+      const base64 = canvas.toDataURL("image/jpeg") 
 
       setFormData((prev) => ({
         ...prev,
         image: base64,
         imagePreview: base64,
+        gender: modelType, // Automatically set gender based on model choice
       }))
       setUseModelImage(true)
     }
 
-    img.src = modelPath
+    img.onerror = () => {
+      console.error(`[FitLook] Failed to load model image from path: ${modelPath}. Check file location in 'public' folder.`)
+      alert("Error: Could not load model image. Please check that /male-model.png and /female-model.png exist in your public directory.")
+    }
+
+    img.src = modelPath 
   }
 
   // Handle form submission
@@ -89,15 +107,18 @@ function UserDetailsForm({ onSubmit }) {
 
     setLoading(true)
     try {
-      const result = await saveUserProfile({
+      // Ensure height and weight are converted to numbers for API call
+      const profileData = {
         name: formData.name,
-        height: Number.parseInt(formData.height),
-        weight: Number.parseInt(formData.weight),
+        height: Number.parseInt(formData.height, 10), 
+        weight: Number.parseInt(formData.weight, 10),
         gender: formData.gender,
         shoeSize: formData.shoeSize,
         preferredStyle: formData.preferredStyle,
         uploadedImage: formData.image,
-      })
+      }
+
+      const result = await saveUserProfile(profileData)
 
       console.log("[FitLook] Profile saved successfully:", result)
 
@@ -107,7 +128,7 @@ function UserDetailsForm({ onSubmit }) {
       })
     } catch (error) {
       console.error("[FitLook] Error saving profile:", error)
-      alert("Error saving profile: " + error.message)
+      alert("Error saving profile: " + (error.message || "An unknown error occurred."))
     } finally {
       setLoading(false)
     }
@@ -211,20 +232,8 @@ function UserDetailsForm({ onSubmit }) {
             <input
               type="file"
               accept="image/*"
-              onChange={(e) => {
-                const file = e.target.files[0]
-                if (file) {
-                  const reader = new FileReader()
-                  reader.onloadend = () => {
-                    setFormData((prev) => ({
-                      ...prev,
-                      image: reader.result,
-                      imagePreview: reader.result,
-                    }))
-                  }
-                  reader.readAsDataURL(file)
-                }
-              }}
+              onChange={handleImageUpload} // Use the defined handler
+              ref={fileInputRef} // Attach the ref
               className="file-input"
             />
             {formData.imagePreview && (
@@ -239,9 +248,12 @@ function UserDetailsForm({ onSubmit }) {
         <div className="form-group">
           <label>Or Select a Model Image</label>
           <div className="model-images">
-            <div className="model-option" onClick={() => handleModelImageSelect("male")}>
+            <div 
+              className={`model-option ${formData.imagePreview && useModelImage && formData.gender === 'male' ? 'selected' : ''}`} 
+              onClick={() => handleModelImageSelect("male")}
+            >
               <img
-                src="../../public/male-model.jpg"
+                src="/male-model.png"
                 alt="Male Model"
                 onError={(e) => {
                   console.error("[FitLook] Failed to load male model image")
@@ -250,9 +262,12 @@ function UserDetailsForm({ onSubmit }) {
               />
               <p>Male Model</p>
             </div>
-            <div className="model-option" onClick={() => handleModelImageSelect("female")}>
+            <div 
+              className={`model-option ${formData.imagePreview && useModelImage && formData.gender === 'female' ? 'selected' : ''}`} 
+              onClick={() => handleModelImageSelect("female")}
+            >
               <img
-                src="../../public/female-model.jpg"
+                src="/female-model.png"
                 alt="Female Model"
                 onError={(e) => {
                   console.error("[FitLook] Failed to load female model image")
