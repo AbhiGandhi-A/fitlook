@@ -1,8 +1,8 @@
 "use client"
 
-// Component for displaying Shopify products in a grid
 import { useState, useEffect, useContext } from "react"
 import { FitLookContext } from "../App"
+import { fetchAllProducts, getRecommendations } from "../services/apiClient"
 import Recommendations from "./Recommendations"
 import "../styles/ProductCatalog.css"
 
@@ -15,17 +15,17 @@ function ProductCatalog() {
   const [selectedProduct, setSelectedProduct] = useState(null)
   const [showRecommendations, setShowRecommendations] = useState(false)
 
-  // Fetch products from backend
+  // Fetch products from Shopify via backend
   useEffect(() => {
     const fetchProducts = async () => {
       try {
         setLoading(true)
-        const response = await fetch("/api/products/shopify/all")
-        const data = await response.json()
+        const data = await fetchAllProducts()
         setProducts(data)
         filterProductsByCategory(data, selectedCategory)
       } catch (error) {
-        console.error("Error fetching products:", error)
+        console.error("[FitLook] Error fetching products:", error)
+        alert("Failed to load products. Please check your Shopify connection.")
       } finally {
         setLoading(false)
       }
@@ -34,9 +34,23 @@ function ProductCatalog() {
     fetchProducts()
   }, [])
 
-  // Filter products by category
+  // Filter products by category based on Shopify product type
   const filterProductsByCategory = (allProducts, category) => {
-    const filtered = allProducts.filter((p) => p.category === category)
+    const filtered = allProducts.filter((p) => {
+      const productType = p.productType.toLowerCase()
+      switch (category) {
+        case "top":
+          return productType.includes("shirt") || productType.includes("top") || productType.includes("dress")
+        case "bottom":
+          return productType.includes("pant") || productType.includes("jean") || productType.includes("bottom")
+        case "shoes":
+          return productType.includes("shoe") || productType.includes("footwear")
+        case "accessory":
+          return productType.includes("accessory") || productType.includes("belt") || productType.includes("bag")
+        default:
+          return true
+      }
+    })
     setFilteredProducts(filtered)
   }
 
@@ -48,29 +62,16 @@ function ProductCatalog() {
     setShowRecommendations(false)
   }
 
-  // Handle product selection
+  // Handle product selection and fetch recommendations
   const handleProductSelect = async (product) => {
     setSelectedProduct(product)
     handleSelectItem(product, selectedCategory)
 
-    // Fetch recommendations
     try {
-      const response = await fetch("/api/recommend/get", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          selectedProductId: product.id,
-          userPreferences: { preferredStyle: "casual" },
-        }),
-      })
-
-      if (response.ok) {
-        setShowRecommendations(true)
-      }
+      await getRecommendations(product.id, { preferredStyle: "casual" })
+      setShowRecommendations(true)
     } catch (error) {
-      console.error("Error fetching recommendations:", error)
+      console.error("[FitLook] Error fetching recommendations:", error)
     }
   }
 
@@ -109,7 +110,7 @@ function ProductCatalog() {
       {/* Products Grid */}
       <div className="products-grid">
         {loading ? (
-          <p>Loading products...</p>
+          <p className="loading-text">Loading products from your Shopify store...</p>
         ) : filteredProducts.length > 0 ? (
           filteredProducts.map((product) => (
             <div
@@ -117,13 +118,13 @@ function ProductCatalog() {
               className={`product-card ${selectedProduct?.id === product.id ? "selected" : ""}`}
               onClick={() => handleProductSelect(product)}
             >
-              <img src={product.image || "/placeholder.svg"} alt={product.title} />
+              <img src={product.image || "/placeholder.svg?height=200&width=200"} alt={product.title} />
               <h3>{product.title}</h3>
-              <p className="price">${product.price}</p>
+              <p className="price">${Number.parseFloat(product.price).toFixed(2)}</p>
             </div>
           ))
         ) : (
-          <p>No products found in this category</p>
+          <p className="no-products">No products found in this category</p>
         )}
       </div>
 

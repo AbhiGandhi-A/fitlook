@@ -1,79 +1,98 @@
-// AI Recommendation Engine - suggests complementary clothing items
-// This module contains the core logic for outfit recommendations
-
 /**
  * Get recommendations based on selected product and user preferences
  * @param {Object} selectedProduct - The product user selected
  * @param {Object} userPreferences - User's style preferences
+ * @param {Array} allProducts - All available products from Shopify
  * @returns {Array} Array of recommended products
  */
-export const getRecommendations = async (selectedProduct, userPreferences = {}) => {
+export const getRecommendations = async (selectedProduct, userPreferences = {}, allProducts = []) => {
   try {
-    // Import ProductCategory here to avoid circular dependencies
-    const { default: ProductCategory } = await import("../models/ProductCategory.js")
-
     const recommendations = []
     const userStyle = userPreferences.preferredStyle || "casual"
 
+    // Determine product category from product type
+    const productType = selectedProduct.productType.toLowerCase()
+    const isTop = productType.includes("shirt") || productType.includes("top") || productType.includes("dress")
+    const isBottom = productType.includes("pant") || productType.includes("jean") || productType.includes("bottom")
+    const isShoe = productType.includes("shoe") || productType.includes("footwear")
+
     // Rule 1: If user selected a TOP, recommend BOTTOMS and SHOES
-    if (selectedProduct.category === "top" || selectedProduct.category === "dress") {
-      const bottoms = await ProductCategory.find({
-        category: { $in: ["bottom", "jeans"] },
-        style: { $in: selectedProduct.style },
-      }).limit(3)
+    if (isTop) {
+      const bottoms = allProducts.filter(
+        (p) =>
+          (p.productType.toLowerCase().includes("pant") ||
+            p.productType.toLowerCase().includes("jean") ||
+            p.productType.toLowerCase().includes("bottom")) &&
+          p.id !== selectedProduct.id,
+      )
 
-      const shoes = await ProductCategory.find({
-        category: "shoes",
-        style: { $in: selectedProduct.style },
-      }).limit(2)
+      const shoes = allProducts.filter(
+        (p) =>
+          (p.productType.toLowerCase().includes("shoe") || p.productType.toLowerCase().includes("footwear")) &&
+          p.id !== selectedProduct.id,
+      )
 
-      recommendations.push(...bottoms, ...shoes)
+      recommendations.push(...bottoms.slice(0, 3), ...shoes.slice(0, 2))
     }
 
     // Rule 2: If user selected BOTTOM, recommend TOPS and SHOES
-    if (selectedProduct.category === "bottom" || selectedProduct.category === "jeans") {
-      const tops = await ProductCategory.find({
-        category: { $in: ["top", "dress"] },
-        style: { $in: selectedProduct.style },
-      }).limit(3)
+    if (isBottom) {
+      const tops = allProducts.filter(
+        (p) =>
+          (p.productType.toLowerCase().includes("shirt") ||
+            p.productType.toLowerCase().includes("top") ||
+            p.productType.toLowerCase().includes("dress")) &&
+          p.id !== selectedProduct.id,
+      )
 
-      const shoes = await ProductCategory.find({
-        category: "shoes",
-        style: { $in: selectedProduct.style },
-      }).limit(2)
+      const shoes = allProducts.filter(
+        (p) =>
+          (p.productType.toLowerCase().includes("shoe") || p.productType.toLowerCase().includes("footwear")) &&
+          p.id !== selectedProduct.id,
+      )
 
-      recommendations.push(...tops, ...shoes)
+      recommendations.push(...tops.slice(0, 3), ...shoes.slice(0, 2))
     }
 
     // Rule 3: If user selected SHOES, recommend TOPS and BOTTOMS
-    if (selectedProduct.category === "shoes") {
-      const tops = await ProductCategory.find({
-        category: { $in: ["top", "dress"] },
-        style: { $in: selectedProduct.style },
-      }).limit(2)
+    if (isShoe) {
+      const tops = allProducts.filter(
+        (p) =>
+          (p.productType.toLowerCase().includes("shirt") ||
+            p.productType.toLowerCase().includes("top") ||
+            p.productType.toLowerCase().includes("dress")) &&
+          p.id !== selectedProduct.id,
+      )
 
-      const bottoms = await ProductCategory.find({
-        category: { $in: ["bottom", "jeans"] },
-        style: { $in: selectedProduct.style },
-      }).limit(2)
+      const bottoms = allProducts.filter(
+        (p) =>
+          (p.productType.toLowerCase().includes("pant") ||
+            p.productType.toLowerCase().includes("jean") ||
+            p.productType.toLowerCase().includes("bottom")) &&
+          p.id !== selectedProduct.id,
+      )
 
-      recommendations.push(...tops, ...bottoms)
+      recommendations.push(...tops.slice(0, 2), ...bottoms.slice(0, 2))
     }
 
     // Rule 4: Always recommend accessories
-    const accessories = await ProductCategory.find({
-      category: "accessory",
-      style: { $in: selectedProduct.style },
-    }).limit(2)
+    const accessories = allProducts.filter(
+      (p) =>
+        (p.productType.toLowerCase().includes("accessory") ||
+          p.productType.toLowerCase().includes("belt") ||
+          p.productType.toLowerCase().includes("bag")) &&
+        p.id !== selectedProduct.id,
+    )
 
-    recommendations.push(...accessories)
+    recommendations.push(...accessories.slice(0, 2))
 
     // Remove duplicates
-    const uniqueRecommendations = Array.from(new Map(recommendations.map((item) => [item._id, item])).values())
+    const uniqueRecommendations = Array.from(new Map(recommendations.map((item) => [item.id, item])).values())
 
+    console.log(`[FitLook] Generated ${uniqueRecommendations.length} recommendations`)
     return uniqueRecommendations
   } catch (error) {
-    console.error("Error in recommendation engine:", error)
+    console.error("[FitLook] Error in recommendation engine:", error.message)
     return []
   }
 }
@@ -103,37 +122,19 @@ export const analyzeUserImage = (imageBase64) => {
 export const calculateCompatibilityScore = (top, bottom) => {
   let score = 50 // Base score
 
-  // Check style match
-  const commonStyles = top.style.filter((s) => bottom.style.includes(s))
-  if (commonStyles.length > 0) {
+  // Check if both are from same vendor (often indicates good pairing)
+  if (top.vendor === bottom.vendor) {
     score += 25
   }
 
-  // Check color compatibility (simple logic)
-  const colorCompatibility = checkColorCompatibility(top.color, bottom.color)
-  if (colorCompatibility) {
+  // Check price range compatibility
+  const topPrice = Number.parseFloat(top.price)
+  const bottomPrice = Number.parseFloat(bottom.price)
+  const priceDiff = Math.abs(topPrice - bottomPrice)
+
+  if (priceDiff < 50) {
     score += 25
   }
 
   return Math.min(score, 100)
-}
-
-/**
- * Check if colors are compatible
- * @param {Array} topColors - Colors of top
- * @param {Array} bottomColors - Colors of bottom
- * @returns {Boolean} Whether colors are compatible
- */
-const checkColorCompatibility = (topColors = [], bottomColors = []) => {
-  // Simple color compatibility rules
-  const neutrals = ["black", "white", "gray", "beige", "navy"]
-
-  // If either is neutral, they're compatible
-  if (topColors.some((c) => neutrals.includes(c)) || bottomColors.some((c) => neutrals.includes(c))) {
-    return true
-  }
-
-  // Check for common colors
-  const commonColors = topColors.filter((c) => bottomColors.includes(c))
-  return commonColors.length > 0
 }

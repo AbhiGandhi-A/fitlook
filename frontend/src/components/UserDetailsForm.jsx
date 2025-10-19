@@ -1,7 +1,7 @@
 "use client"
 
-// Component for collecting user body details and preferences
 import { useState } from "react"
+import { saveUserProfile } from "../services/apiClient"
 import "../styles/UserDetailsForm.css"
 
 function UserDetailsForm({ onSubmit }) {
@@ -17,7 +17,7 @@ function UserDetailsForm({ onSubmit }) {
   })
 
   const [useModelImage, setUseModelImage] = useState(false)
-  const [modelImageUrl, setModelImageUrl] = useState("")
+  const [loading, setLoading] = useState(false)
 
   // Handle form input changes
   const handleInputChange = (e) => {
@@ -46,7 +46,6 @@ function UserDetailsForm({ onSubmit }) {
 
   // Handle model image selection
   const handleModelImageSelect = (url) => {
-    setModelImageUrl(url)
     setFormData((prev) => ({
       ...prev,
       image: url,
@@ -70,36 +69,29 @@ function UserDetailsForm({ onSubmit }) {
       return
     }
 
+    setLoading(true)
     try {
-      // Save user profile to backend
-      const response = await fetch("/api/user/profile", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: formData.name,
-          height: Number.parseInt(formData.height),
-          weight: Number.parseInt(formData.weight),
-          gender: formData.gender,
-          shoeSize: formData.shoeSize,
-          preferredStyle: formData.preferredStyle,
-          uploadedImage: formData.image,
-        }),
+      const result = await saveUserProfile({
+        name: formData.name,
+        height: Number.parseInt(formData.height),
+        weight: Number.parseInt(formData.weight),
+        gender: formData.gender,
+        shoeSize: formData.shoeSize,
+        preferredStyle: formData.preferredStyle,
+        uploadedImage: formData.image,
       })
 
-      if (response.ok) {
-        const user = await response.json()
-        onSubmit({
-          ...formData,
-          userId: user.user._id,
-        })
-      } else {
-        alert("Failed to save profile")
-      }
+      console.log("[FitLook] Profile saved successfully:", result)
+
+      onSubmit({
+        ...formData,
+        userId: result.user?._id || result._id,
+      })
     } catch (error) {
-      console.error("Error saving profile:", error)
-      alert("Error saving profile")
+      console.error("[FitLook] Error saving profile:", error)
+      alert("Error saving profile: " + error.message)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -208,20 +200,20 @@ function UserDetailsForm({ onSubmit }) {
         <div className="form-group">
           <label>Or Select a Model Image</label>
           <div className="model-images">
-            <div className="model-option" onClick={() => handleModelImageSelect("/images/model-male.jpg")}>
-              <img src="/images/model-male.jpg" alt="Male Model" />
+            <div className="model-option" onClick={() => handleModelImageSelect("/male-model.jpg")}>
+              <img src="/male-model.jpg" alt="Male Model" />
               <p>Male Model</p>
             </div>
-            <div className="model-option" onClick={() => handleModelImageSelect("/images/model-female.jpg")}>
-              <img src="/images/model-female.jpg" alt="Female Model" />
+            <div className="model-option" onClick={() => handleModelImageSelect("/female-model.jpg")}>
+              <img src="/female-model.jpg" alt="Female Model" />
               <p>Female Model</p>
             </div>
           </div>
         </div>
 
         {/* Submit Button */}
-        <button type="submit" className="btn btn-primary btn-large">
-          Continue to Catalog
+        <button type="submit" className="btn btn-primary btn-large" disabled={loading}>
+          {loading ? "Saving..." : "Continue to Catalog"}
         </button>
       </form>
     </div>

@@ -40,19 +40,10 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "FitLook server is running" })
 })
 
-// ⭐ ADDED: Explicitly serve index.html for the /widget route
-app.get("/widget", (req, res) => {
+// Serve React app for all other routes
+app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "frontend/build/index.html"))
 })
-
-
-// Serve React app for all other routes (The final catch-all)
-app.use((req, res) => {
-  // NOTE: This should technically not be hit by API calls due to the vercel.json config, 
-  // but it ensures the SPA routing works for the main app.
-  res.sendFile(path.join(__dirname, "frontend/build/index.html"))
-})
-
 
 // MongoDB Connection
 mongoose
