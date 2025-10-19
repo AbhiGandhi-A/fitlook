@@ -3,6 +3,7 @@
 // Component for displaying AI-powered recommendations
 import { useState, useEffect, useContext } from "react"
 import { FitLookContext } from "../App"
+import { getRecommendations } from "../services/apiClient"
 import "../styles/Recommendations.css"
 
 function Recommendations({ selectedProduct }) {
@@ -10,27 +11,19 @@ function Recommendations({ selectedProduct }) {
   const [recommendations, setRecommendations] = useState([])
   const [loading, setLoading] = useState(true)
 
-  // Fetch recommendations
   useEffect(() => {
     const fetchRecommendations = async () => {
       try {
         setLoading(true)
-        const response = await fetch("/api/recommend/get", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            selectedProductId: selectedProduct.id,
-          }),
-        })
+        console.log("[FitLook] Fetching recommendations for product:", selectedProduct.id)
 
-        if (response.ok) {
-          const data = await response.json()
-          setRecommendations(data.recommendations || [])
-        }
+        const data = await getRecommendations(selectedProduct.id, { preferredStyle: "casual" })
+        console.log("[FitLook] Recommendations received:", data)
+
+        setRecommendations(data || [])
       } catch (error) {
-        console.error("Error fetching recommendations:", error)
+        console.error("[FitLook] Error fetching recommendations:", error)
+        setRecommendations([])
       } finally {
         setLoading(false)
       }
@@ -49,7 +42,7 @@ function Recommendations({ selectedProduct }) {
       ) : recommendations.length > 0 ? (
         <div className="recommendations-grid">
           {recommendations.map((item) => (
-            <div key={item._id} className="recommendation-card" onClick={() => handleSelectItem(item, item.category)}>
+            <div key={item.id} className="recommendation-card" onClick={() => handleSelectItem(item, item.category)}>
               <img src={item.image || "/placeholder.svg"} alt={item.title} />
               <h4>{item.title}</h4>
               <p className="category">{item.category}</p>

@@ -54,6 +54,9 @@ function OutfitPreview() {
           drawClothingItem(ctx, selectedItems.shoes.image, "shoes", img.height, img.width)
         }
       }
+      img.onerror = () => {
+        console.error("[FitLook] Failed to load user image")
+      }
       img.src = userImage
     }
   }, [userImage, selectedItems])
@@ -83,6 +86,9 @@ function OutfitPreview() {
       ctx.globalAlpha = 0.75
       ctx.drawImage(img, 0, y, width, height)
       ctx.globalAlpha = 1
+    }
+    img.onerror = () => {
+      console.error(`[FitLook] Failed to load ${category} image`)
     }
     img.src = itemImage
   }

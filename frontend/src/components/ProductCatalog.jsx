@@ -20,7 +20,9 @@ function ProductCatalog() {
     const fetchProducts = async () => {
       try {
         setLoading(true)
+        console.log("[FitLook] Fetching products from Shopify...")
         const data = await fetchAllProducts()
+        console.log("[FitLook] Products fetched:", data.length)
         setProducts(data)
         filterProductsByCategory(data, selectedCategory)
       } catch (error) {
