@@ -8,14 +8,15 @@ import cors from "cors"
 import path from "path"
 import { fileURLToPath } from "url"
 
-import { validateShopifyConfig } from "./utils/shopifyClient.js"
+// Use relative path to utils/shopifyClient.js
+import { validateShopifyConfig } from "./backend/utils/shopifyClient.js"
 
 // Import routes
-import userRoutes from "./routes/userRoutes.js"
-import productRoutes from "./routes/productRoutes.js"
-import recommendationRoutes from "./routes/recommendationRoutes.js"
-import cartRoutes from "./routes/cartRoutes.js"
-import adminRoutes from "./routes/adminRoutes.js"
+import userRoutes from "./backend/routes/userRoutes.js"
+import productRoutes from "./backend/routes/productRoutes.js"
+import recommendationRoutes from "./backend/routes/recommendationRoutes.js"
+import cartRoutes from "./backend/routes/cartRoutes.js"
+import adminRoutes from "./backend/routes/adminRoutes.js"
 
 const app = express()
 const __filename = fileURLToPath(import.meta.url)
@@ -35,42 +36,32 @@ try {
 }
 
 // ----------------------------------------------------------------------
-// 1. UPDATED CORS CONFIGURATION TO FIX ORIGIN ERROR
+// FIX 1: CORS Configuration to allow Vercel and Local origins
 // ----------------------------------------------------------------------
 
-// Define all allowed origins.
-// In development, the frontend is on http://localhost:3000.
-// In production (deployed), the frontend is on https://fitlook.vercel.app.
-// The backend needs to know all valid origins.
 const ALLOWED_ORIGINS = [
     "http://localhost:3000",
-    "https://fitlook.vercel.app",
-    // Add any other deployment URLs (e.g., staging) here if necessary
+    "https://fitlook.vercel.app", // Your deployed frontend
 ];
 
 const corsOptions = {
-    // Dynamically check if the request origin is in the allowed list
     origin: (origin, callback) => {
-        // Allow requests with no origin (like mobile apps, cURL, or same-origin requests)
-        if (!origin) return callback(null, true); 
-        
-        if (ALLOWED_ORIGINS.includes(origin)) {
+        if (!origin || ALLOWED_ORIGINS.includes(origin)) {
             callback(null, true);
         } else {
             console.error(`[FitLook|CORS] Blocked request from origin: ${origin}`);
             callback(new Error("Not allowed by CORS"), false);
         }
     },
-    // IMPORTANT: Explicitly list all custom headers used in the frontend (e.g., 'admin-password')
+    // Ensure all necessary headers are allowed
     allowedHeaders: ['Content-Type', 'admin-password'], 
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     credentials: true,
 };
 
-// Apply the explicit CORS middleware configuration
 app.use(cors(corsOptions));
-
 // ----------------------------------------------------------------------
+
 
 // Middleware
 app.use(express.json({ limit: "50mb" }))
@@ -96,19 +87,17 @@ app.get("/api/health", (req, res) => {
 })
 
 // ----------------------------------------------------------------------
-// 2. UPDATED MONGODB CONNECTION TO FIX DEPRECATION WARNINGS
+// FIX 2: Removed deprecated MongoDB connection options
 // ----------------------------------------------------------------------
-
-// MongoDB Connection
 mongoose
-  .connect(process.env.MONGODB_URI) // <-- Removed deprecated options: useNewUrlParser and useUnifiedTopology
+  .connect(process.env.MONGODB_URI) // Removed { useNewUrlParser: true, useUnifiedTopology: true }
   .then(() => console.log("[FitLook] MongoDB connected successfully"))
   .catch((err) => {
     console.error("[FitLook] MongoDB connection error:", err.message)
     process.exit(1)
   })
-
 // ----------------------------------------------------------------------
+
 
 // Start server
 const PORT = process.env.PORT || 5000

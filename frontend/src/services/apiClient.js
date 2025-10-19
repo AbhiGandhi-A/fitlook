@@ -3,50 +3,49 @@
 const API_BASE_URL = process.env.REACT_APP_API_URL || "https://fitlook.onrender.com/api"
 
 /**
- * Make API call to backend
- * @param {String} endpoint - API endpoint (e.g., '/products/shopify/all')
- * @param {String} method - HTTP method (GET, POST, etc.)
- * @param {Object} data - Request body data
- * @param {Object} options - Additional options (headers, etc.)
- * @returns {Promise} API response
- */
+ * Make API call to backend
+ * @param {String} endpoint - API endpoint (e.g., '/products/shopify/all')
+ * @param {String} method - HTTP method (GET, POST, etc.)
+ * @param {Object} data - Request body data
+ * @param {Object} options - Additional options (headers, etc.)
+ * @returns {Promise} API response
+ */
 export const apiCall = async (endpoint, method = "GET", data = null, options = {}) => {
-  try {
-    console.log(`[FitLook] API Call: ${method} ${endpoint}`)
+  try {
+    console.log(`[FitLook] API Call: ${method} ${endpoint}`)
 
-    const headers = {
-      "Content-Type": "application/json",
-      ...options.headers,
-    }
+    const headers = {
+      "Content-Type": "application/json",
+      ...options.headers,
+    }
 
-    if (options.adminPassword) {
-      headers["admin-password"] = options.adminPassword
-    }
+    if (options.adminPassword) {
+      headers["admin-password"] = options.adminPassword
+    }
 
-    const fetchOptions = {
-      method,
-      headers,
-      ...options,
-    }
+    const fetchOptions = {
+      method,
+      headers,
+      ...options,
+    }
 
-    if (data) {
-      fetchOptions.body = JSON.stringify(data)
-    }
+    if (data) {
+      fetchOptions.body = JSON.stringify(data)
+    }
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, fetchOptions)
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, fetchOptions)
 
-    if (!response.ok) {
-        // Throw the full status code for better client-side error handling
-      throw new Error(`API error: ${response.status} - ${response.statusText}`)
-    }
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`)
+    }
 
-    const result = await response.json()
-    console.log(`[FitLook] API Response:`, result)
-    return result
-  } catch (error) {
-    console.error(`[FitLook] API Error:`, error.message)
-    throw error
-  }
+    const result = await response.json()
+    console.log(`[FitLook] API Response:`, result)
+    return result
+  } catch (error) {
+    console.error(`[FitLook] API Error:`, error.message)
+    throw error
+  }
 }
 
 // User API calls
@@ -61,16 +60,16 @@ export const getProductsByCategory = (category) => apiCall(`/products/category/$
 
 // Recommendation API calls
 export const getRecommendations = (productId, preferences) =>
-  apiCall("/recommend/get", "POST", { selectedProductId: productId, userPreferences: preferences })
+  apiCall("/recommend/get", "POST", { selectedProductId: productId, userPreferences: preferences })
 export const getCompleteOutfitRecommendations = (topId, bottomId, preferences) =>
-  apiCall("/recommend/complete-outfit", "POST", { topId, bottomId, userPreferences: preferences })
+  apiCall("/recommend/complete-outfit", "POST", { topId, bottomId, userPreferences: preferences })
 
 // Cart API calls
 export const addItemToCart = (variantId, quantity = 1) => apiCall("/cart/add-item", "POST", { variantId, quantity })
 export const addOutfitToCart = (topVariantId, bottomVariantId, shoeVariantId, accessoryVariantIds) =>
-  apiCall("/cart/add-outfit", "POST", { topVariantId, bottomVariantId, shoeVariantId, accessoryVariantIds })
+  apiCall("/cart/add-outfit", "POST", { topVariantId, bottomVariantId, shoeVariantId, accessoryVariantIds })
 
 // Admin API calls
 export const getDiscountRules = (password) => apiCall("/admin/discount-rules", "GET", null, { adminPassword: password })
 export const createDiscountRule = (password, rule) =>
-  apiCall("/admin/discount-rules", "POST", rule, { adminPassword: password })
+  apiCall("/admin/discount-rules", "POST", rule, { adminPassword: password })
