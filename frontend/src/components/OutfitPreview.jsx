@@ -3,14 +3,72 @@
 import { useContext, useRef, useEffect, useState } from "react"
 import { FitLookContext } from "../App"
 import { addOutfitToCart, addItemToCart } from "../services/apiClient"
+import VirtualTryOnEngine from "../utils/VirtualTryOnEngine"
 import "../styles/OutfitPreview.css"
 
 function OutfitPreview() {
-  const { userImage, selectedItems, setCurrentStep } = useContext(FitLookContext)
+  const { userImage, selectedItems, userProfile, setCurrentStep } = useContext(FitLookContext)
   const canvasRef = useRef(null)
   const [discountApplied, setDiscountApplied] = useState(false)
   const [loading, setLoading] = useState(false)
   const [totalPrice, setTotalPrice] = useState(0)
+  const [tryOnEngine, setTryOnEngine] = useState(null)
+  const [renderingComplete, setRenderingComplete] = useState(false)
+
+  // Initialize virtual try-on engine
+  useEffect(() => {
+    if (canvasRef.current && userImage && userProfile) {
+      const engine = new VirtualTryOnEngine(canvasRef.current, userProfile)
+      setTryOnEngine(engine)
+
+      // Load base image and render outfit
+      engine
+        .loadBaseImage(userImage)
+        .then(() => {
+          renderOutfit(engine)
+        })
+        .catch((err) => {
+          console.error("[FitLook] Error loading base image:", err)
+        })
+    }
+  }, [userImage, userProfile])
+
+  // Render outfit on canvas
+  const renderOutfit = async (engine) => {
+    try {
+      setRenderingComplete(false)
+
+      // Apply clothing items in order (top, bottom, shoes, accessories)
+      if (selectedItems.top) {
+        await engine.applyClothing(selectedItems.top, "top")
+      }
+
+      if (selectedItems.bottom) {
+        await engine.applyClothing(selectedItems.bottom, "bottom")
+      }
+
+      if (selectedItems.shoes) {
+        await engine.applyClothing(selectedItems.shoes, "shoes")
+      }
+
+      // Apply accessories
+      for (const accessory of selectedItems.accessories) {
+        await engine.applyClothing(accessory, "accessory")
+      }
+
+      setRenderingComplete(true)
+    } catch (error) {
+      console.error("[FitLook] Error rendering outfit:", error)
+    }
+  }
+
+  // Re-render when selected items change
+  useEffect(() => {
+    if (tryOnEngine && renderingComplete) {
+      tryOnEngine.resetCanvas()
+      renderOutfit(tryOnEngine)
+    }
+  }, [selectedItems])
 
   // Calculate total price
   useEffect(() => {
@@ -23,75 +81,6 @@ function OutfitPreview() {
     })
     setTotalPrice(total)
   }, [selectedItems])
-
-  // Draw outfit preview on canvas with improved overlay
-  useEffect(() => {
-    if (canvasRef.current && userImage) {
-      const canvas = canvasRef.current
-      const ctx = canvas.getContext("2d")
-
-      // Load base image
-      const img = new Image()
-      img.crossOrigin = "anonymous"
-      img.onload = () => {
-        // Set canvas size to match image
-        canvas.width = img.width
-        canvas.height = img.height
-
-        // Draw base image
-        ctx.drawImage(img, 0, 0)
-
-        // Draw selected clothing items as overlays
-        if (selectedItems.top && selectedItems.top.image) {
-          drawClothingItem(ctx, selectedItems.top.image, "top", img.height, img.width)
-        }
-
-        if (selectedItems.bottom && selectedItems.bottom.image) {
-          drawClothingItem(ctx, selectedItems.bottom.image, "bottom", img.height, img.width)
-        }
-
-        if (selectedItems.shoes && selectedItems.shoes.image) {
-          drawClothingItem(ctx, selectedItems.shoes.image, "shoes", img.height, img.width)
-        }
-      }
-      img.onerror = () => {
-        console.error("[FitLook] Failed to load user image")
-      }
-      img.src = userImage
-    }
-  }, [userImage, selectedItems])
-
-  // Helper function to draw clothing items on canvas with proper positioning
-  const drawClothingItem = (ctx, itemImage, category, imageHeight, imageWidth) => {
-    const img = new Image()
-    img.crossOrigin = "anonymous"
-    img.onload = () => {
-      let y = 0
-      let height = imageHeight / 3
-      const width = imageWidth
-
-      // Position based on category
-      if (category === "top") {
-        y = imageHeight * 0.1
-        height = imageHeight * 0.35
-      } else if (category === "bottom") {
-        y = imageHeight * 0.4
-        height = imageHeight * 0.35
-      } else if (category === "shoes") {
-        y = imageHeight * 0.75
-        height = imageHeight * 0.25
-      }
-
-      // Draw with transparency for realistic overlay
-      ctx.globalAlpha = 0.75
-      ctx.drawImage(img, 0, y, width, height)
-      ctx.globalAlpha = 1
-    }
-    img.onerror = () => {
-      console.error(`[FitLook] Failed to load ${category} image`)
-    }
-    img.src = itemImage
-  }
 
   // Check if complete outfit is selected
   const isCompleteOutfit = selectedItems.top && selectedItems.bottom
@@ -142,11 +131,18 @@ function OutfitPreview() {
 
   return (
     <div className="outfit-preview">
-      <h2>Your Outfit Preview</h2>
+      <h2>Your Virtual Try-On</h2>
 
       {/* Canvas for outfit preview */}
       <div className="preview-container">
-        <canvas ref={canvasRef} className="preview-canvas" />
+        <div className="canvas-wrapper">
+          <canvas ref={canvasRef} className="preview-canvas" />
+          {!renderingComplete && (
+            <div className="rendering-indicator">
+              <p>Rendering your outfit...</p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Selected items summary */}

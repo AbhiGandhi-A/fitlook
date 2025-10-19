@@ -5,10 +5,12 @@ import ProductCategory from "../models/ProductCategory.js"
 
 const router = express.Router()
 
-// Middleware: Simple admin authentication (in production, use JWT)
+// Middleware: Admin authentication
 const adminAuth = (req, res, next) => {
-  const { adminPassword } = req.headers
-  if (adminPassword !== process.env.ADMIN_PASSWORD) {
+  // Check password in body or headers
+  const password = req.body?.adminPassword || req.headers?.["admin-password"]
+
+  if (password !== process.env.ADMIN_PASSWORD) {
     return res.status(401).json({ error: "Unauthorized" })
   }
   next()
@@ -30,18 +32,18 @@ router.post("/discount-rules", adminAuth, async (req, res) => {
     await rule.save()
     res.json({ success: true, rule })
   } catch (error) {
-    console.error("Error creating discount rule:", error)
+    console.error("[FitLook] Error creating discount rule:", error)
     res.status(500).json({ error: "Failed to create discount rule" })
   }
 })
 
-// GET: Get all discount rules
+// GET: Get all discount rules (with auth)
 router.get("/discount-rules", adminAuth, async (req, res) => {
   try {
     const rules = await DiscountRule.find()
     res.json(rules)
   } catch (error) {
-    console.error("Error fetching discount rules:", error)
+    console.error("[FitLook] Error fetching discount rules:", error)
     res.status(500).json({ error: "Failed to fetch discount rules" })
   }
 })

@@ -1,12 +1,14 @@
+import dotenv from "dotenv"
+dotenv.config()
+
 // Main Express server entry point
 import express from "express"
 import mongoose from "mongoose"
 import cors from "cors"
-import dotenv from "dotenv"
 import path from "path"
 import { fileURLToPath } from "url"
 
-dotenv.config()
+import { validateShopifyConfig } from "./backend/utils/shopifyClient.js"
 
 // Import routes
 import userRoutes from "./backend/routes/userRoutes.js"
@@ -23,6 +25,14 @@ console.log("[FitLook] Server starting...")
 console.log("[FitLook] Environment:", process.env.NODE_ENV)
 console.log("[FitLook] MongoDB URI:", process.env.MONGODB_URI ? "Configured" : "NOT SET")
 console.log("[FitLook] Shopify Store Domain:", process.env.SHOPIFY_STORE_DOMAIN || "NOT SET")
+
+try {
+  validateShopifyConfig()
+} catch (error) {
+  console.error("[FitLook] Shopify configuration error:", error.message)
+  console.error("[FitLook] Please check your .env file and ensure all required variables are set")
+  process.exit(1)
+}
 
 // Middleware
 app.use(cors())

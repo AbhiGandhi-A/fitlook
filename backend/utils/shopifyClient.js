@@ -1,7 +1,19 @@
 // Shopify API client for fetching products and managing cart
 import axios from "axios"
 
-const validateEnv = () => {
+// Initialize Shopify Admin API client
+const createShopifyAdminClient = () => {
+  return axios.create({
+    baseURL: `https://${process.env.SHOPIFY_STORE_DOMAIN}/admin/api/2024-01`,
+    headers: {
+      "X-Shopify-Access-Token": process.env.SHOPIFY_ACCESS_TOKEN,
+      "Content-Type": "application/json",
+    },
+  })
+}
+
+// Validation function to be called after dotenv.config()
+export const validateShopifyConfig = () => {
   const required = ["SHOPIFY_STORE_DOMAIN", "SHOPIFY_ACCESS_TOKEN", "SHOPIFY_STOREFRONT_TOKEN"]
   const missing = required.filter((key) => !process.env[key])
 
@@ -10,25 +22,14 @@ const validateEnv = () => {
     throw new Error(`Missing required env vars: ${missing.join(", ")}`)
   }
 
-  console.log("[FitLook] Shopify config loaded:")
+  console.log("[FitLook] Shopify config validated:")
   console.log(`  - Store Domain: ${process.env.SHOPIFY_STORE_DOMAIN}`)
   console.log(`  - Access Token: ${process.env.SHOPIFY_ACCESS_TOKEN.substring(0, 10)}...`)
 }
 
-// Validate on module load
-validateEnv()
-
-// Initialize Shopify Admin API client
-const shopifyAdminClient = axios.create({
-  baseURL: `https://${process.env.SHOPIFY_STORE_DOMAIN}/admin/api/2024-01`,
-  headers: {
-    "X-Shopify-Access-Token": process.env.SHOPIFY_ACCESS_TOKEN,
-    "Content-Type": "application/json",
-  },
-})
-
 export const fetchAllProducts = async () => {
   try {
+    const shopifyAdminClient = createShopifyAdminClient()
     console.log("[FitLook] Fetching products from Shopify...")
     console.log(`[FitLook] Using store domain: ${process.env.SHOPIFY_STORE_DOMAIN}`)
 
@@ -73,6 +74,7 @@ export const fetchAllProducts = async () => {
 // Fetch product by ID
 export const fetchProductById = async (productId) => {
   try {
+    const shopifyAdminClient = createShopifyAdminClient()
     const response = await shopifyAdminClient.get(`/products/${productId}.json`)
     return response.data.product
   } catch (error) {
@@ -142,6 +144,7 @@ export const createShopifyCart = async (items) => {
 // Get product recommendations based on category
 export const getProductsByCategory = async (category) => {
   try {
+    const shopifyAdminClient = createShopifyAdminClient()
     const response = await shopifyAdminClient.get("/products.json", {
       params: {
         limit: 250,
@@ -169,4 +172,4 @@ export const getProductsByCategory = async (category) => {
   }
 }
 
-export default shopifyAdminClient
+export default createShopifyAdminClient

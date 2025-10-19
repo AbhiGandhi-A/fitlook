@@ -1,7 +1,7 @@
 "use client"
 
-// Admin panel for managing discounts and product categories
 import { useState } from "react"
+import { apiCall } from "../services/apiClient"
 import "../styles/AdminPanel.css"
 
 function AdminPanel() {
@@ -14,53 +14,40 @@ function AdminPanel() {
     discountPercentage: 10,
     requiredItems: { top: true, bottom: true },
   })
+  const [loading, setLoading] = useState(false)
 
-  // Handle admin login
-  const handleAdminLogin = (e) => {
+  const handleAdminLogin = async (e) => {
     e.preventDefault()
-    if (adminPassword === "admin123") {
-      setIsAuthenticated(true)
-      fetchDiscountRules()
-    } else {
+
+    if (adminPassword !== "admin123") {
       alert("Invalid password")
+      return
     }
-  }
 
-  // Fetch discount rules
-  const fetchDiscountRules = async () => {
+    setLoading(true)
     try {
-      const response = await fetch("/api/admin/discount-rules", {
-        headers: {
-          adminPassword: adminPassword,
-        },
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setDiscountRules(data)
-      }
+      const data = await apiCall("/admin/discount-rules", "GET", null, { adminPassword })
+      setIsAuthenticated(true)
+      setDiscountRules(Array.isArray(data) ? data : [])
+      console.log("[FitLook] Admin authenticated successfully")
     } catch (error) {
-      console.error("Error fetching discount rules:", error)
+      console.error("[FitLook] Error fetching discount rules:", error)
+      alert("Login failed: " + error.message)
+    } finally {
+      setLoading(false)
     }
   }
 
-  // Handle new rule creation
   const handleCreateRule = async (e) => {
     e.preventDefault()
+    setLoading(true)
 
     try {
-      const response = await fetch("/api/admin/discount-rules", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          adminPassword: adminPassword,
-        },
-        body: JSON.stringify(newRule),
-      })
+      const result = await apiCall("/admin/discount-rules", "POST", newRule, { adminPassword })
 
-      if (response.ok) {
-        const rule = await response.json()
-        setDiscountRules([...discountRules, rule.rule])
+      if (result.success || result.rule) {
+        const rule = result.rule || result
+        setDiscountRules([...discountRules, rule])
         setNewRule({
           name: "",
           description: "",
@@ -70,8 +57,10 @@ function AdminPanel() {
         alert("Discount rule created successfully")
       }
     } catch (error) {
-      console.error("Error creating rule:", error)
-      alert("Failed to create discount rule")
+      console.error("[FitLook] Error creating rule:", error)
+      alert("Failed to create discount rule: " + error.message)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -87,11 +76,11 @@ function AdminPanel() {
               id="password"
               value={adminPassword}
               onChange={(e) => setAdminPassword(e.target.value)}
-              placeholder="Enter admin password"
+              placeholder="Enter admin password (admin123)"
             />
           </div>
-          <button type="submit" className="btn btn-primary">
-            Login
+          <button type="submit" className="btn btn-primary" disabled={loading}>
+            {loading ? "Logging in..." : "Login"}
           </button>
         </form>
       </div>
@@ -140,8 +129,8 @@ function AdminPanel() {
             />
           </div>
 
-          <button type="submit" className="btn btn-primary">
-            Create Rule
+          <button type="submit" className="btn btn-primary" disabled={loading}>
+            {loading ? "Creating..." : "Create Rule"}
           </button>
         </form>
       </section>

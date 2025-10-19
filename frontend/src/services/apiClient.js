@@ -7,24 +7,33 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5000/api
  * @param {String} endpoint - API endpoint (e.g., '/products/shopify/all')
  * @param {String} method - HTTP method (GET, POST, etc.)
  * @param {Object} data - Request body data
+ * @param {Object} options - Additional options (headers, etc.)
  * @returns {Promise} API response
  */
-export const apiCall = async (endpoint, method = "GET", data = null) => {
+export const apiCall = async (endpoint, method = "GET", data = null, options = {}) => {
   try {
     console.log(`[FitLook] API Call: ${method} ${endpoint}`)
 
-    const options = {
+    const headers = {
+      "Content-Type": "application/json",
+      ...options.headers,
+    }
+
+    if (options.adminPassword) {
+      headers["admin-password"] = options.adminPassword
+    }
+
+    const fetchOptions = {
       method,
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers,
+      ...options,
     }
 
     if (data) {
-      options.body = JSON.stringify(data)
+      fetchOptions.body = JSON.stringify(data)
     }
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, options)
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, fetchOptions)
 
     if (!response.ok) {
       throw new Error(`API error: ${response.status}`)
@@ -61,5 +70,6 @@ export const addOutfitToCart = (topVariantId, bottomVariantId, shoeVariantId, ac
   apiCall("/cart/add-outfit", "POST", { topVariantId, bottomVariantId, shoeVariantId, accessoryVariantIds })
 
 // Admin API calls
-export const getDiscountRules = (password) => apiCall("/admin/discount-rules", "POST", { password })
-export const createDiscountRule = (password, rule) => apiCall("/admin/discount-rules", "POST", { password, ...rule })
+export const getDiscountRules = (password) => apiCall("/admin/discount-rules", "GET", null, { adminPassword: password })
+export const createDiscountRule = (password, rule) =>
+  apiCall("/admin/discount-rules", "POST", rule, { adminPassword: password })

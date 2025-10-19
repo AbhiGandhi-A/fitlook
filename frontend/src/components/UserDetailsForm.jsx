@@ -45,13 +45,31 @@ function UserDetailsForm({ onSubmit }) {
   }
 
   // Handle model image selection
-  const handleModelImageSelect = (url) => {
-    setFormData((prev) => ({
-      ...prev,
-      image: url,
-      imagePreview: url,
-    }))
-    setUseModelImage(true)
+  const handleModelImageSelect = (modelType) => {
+    // Use public folder path
+    const modelPath = modelType === "male" ? "/male-model.jpg" : "/female-model.jpg"
+
+    // Create an image element to load and convert to base64
+    const img = new Image()
+    img.crossOrigin = "anonymous"
+
+    img.onload = () => {
+      const canvas = document.createElement("canvas")
+      canvas.width = img.width
+      canvas.height = img.height
+      const ctx = canvas.getContext("2d")
+      ctx.drawImage(img, 0, 0)
+      const base64 = canvas.toDataURL("image/jpeg")
+
+      setFormData((prev) => ({
+        ...prev,
+        image: base64,
+        imagePreview: base64,
+      }))
+      setUseModelImage(true)
+    }
+
+    img.src = modelPath
   }
 
   // Handle form submission
@@ -108,7 +126,7 @@ function UserDetailsForm({ onSubmit }) {
             id="name"
             name="name"
             value={formData.name}
-            onChange={handleInputChange}
+            onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
             placeholder="Enter your name"
             required
           />
@@ -122,7 +140,7 @@ function UserDetailsForm({ onSubmit }) {
             id="height"
             name="height"
             value={formData.height}
-            onChange={handleInputChange}
+            onChange={(e) => setFormData((prev) => ({ ...prev, height: e.target.value }))}
             placeholder="e.g., 170"
             required
           />
@@ -136,7 +154,7 @@ function UserDetailsForm({ onSubmit }) {
             id="weight"
             name="weight"
             value={formData.weight}
-            onChange={handleInputChange}
+            onChange={(e) => setFormData((prev) => ({ ...prev, weight: e.target.value }))}
             placeholder="e.g., 70"
             required
           />
@@ -145,7 +163,11 @@ function UserDetailsForm({ onSubmit }) {
         {/* Gender */}
         <div className="form-group">
           <label htmlFor="gender">Gender *</label>
-          <select id="gender" name="gender" value={formData.gender} onChange={handleInputChange}>
+          <select
+            id="gender"
+            value={formData.gender}
+            onChange={(e) => setFormData((prev) => ({ ...prev, gender: e.target.value }))}
+          >
             <option value="male">Male</option>
             <option value="female">Female</option>
             <option value="other">Other</option>
@@ -160,7 +182,7 @@ function UserDetailsForm({ onSubmit }) {
             id="shoeSize"
             name="shoeSize"
             value={formData.shoeSize}
-            onChange={handleInputChange}
+            onChange={(e) => setFormData((prev) => ({ ...prev, shoeSize: e.target.value }))}
             placeholder="e.g., 42"
             required
           />
@@ -171,9 +193,8 @@ function UserDetailsForm({ onSubmit }) {
           <label htmlFor="preferredStyle">Preferred Style *</label>
           <select
             id="preferredStyle"
-            name="preferredStyle"
             value={formData.preferredStyle}
-            onChange={handleInputChange}
+            onChange={(e) => setFormData((prev) => ({ ...prev, preferredStyle: e.target.value }))}
           >
             <option value="casual">Casual</option>
             <option value="formal">Formal</option>
@@ -187,7 +208,25 @@ function UserDetailsForm({ onSubmit }) {
         <div className="form-group">
           <label>Upload Your Photo *</label>
           <div className="image-upload-section">
-            <input type="file" accept="image/*" onChange={handleImageUpload} className="file-input" />
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files[0]
+                if (file) {
+                  const reader = new FileReader()
+                  reader.onloadend = () => {
+                    setFormData((prev) => ({
+                      ...prev,
+                      image: reader.result,
+                      imagePreview: reader.result,
+                    }))
+                  }
+                  reader.readAsDataURL(file)
+                }
+              }}
+              className="file-input"
+            />
             {formData.imagePreview && (
               <div className="image-preview">
                 <img src={formData.imagePreview || "/placeholder.svg"} alt="Preview" />
@@ -200,12 +239,26 @@ function UserDetailsForm({ onSubmit }) {
         <div className="form-group">
           <label>Or Select a Model Image</label>
           <div className="model-images">
-            <div className="model-option" onClick={() => handleModelImageSelect("/male-model.jpg")}>
-              <img src="/male-model.jpg" alt="Male Model" />
+            <div className="model-option" onClick={() => handleModelImageSelect("male")}>
+              <img
+                src="../../public/male-model.jpg"
+                alt="Male Model"
+                onError={(e) => {
+                  console.error("[FitLook] Failed to load male model image")
+                  e.target.style.display = "none"
+                }}
+              />
               <p>Male Model</p>
             </div>
-            <div className="model-option" onClick={() => handleModelImageSelect("/female-model.jpg")}>
-              <img src="/female-model.jpg" alt="Female Model" />
+            <div className="model-option" onClick={() => handleModelImageSelect("female")}>
+              <img
+                src="../../public/female-model.jpg"
+                alt="Female Model"
+                onError={(e) => {
+                  console.error("[FitLook] Failed to load female model image")
+                  e.target.style.display = "none"
+                }}
+              />
               <p>Female Model</p>
             </div>
           </div>
