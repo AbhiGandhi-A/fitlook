@@ -8,14 +8,14 @@ import cors from "cors"
 import path from "path"
 import { fileURLToPath } from "url"
 
-import { validateShopifyConfig } from "./backend/utils/shopifyClient.js"
+import { validateShopifyConfig } from "./utils/shopifyClient.js"
 
 // Import routes
-import userRoutes from "./backend/routes/userRoutes.js"
-import productRoutes from "./backend/routes/productRoutes.js"
-import recommendationRoutes from "./backend/routes/recommendationRoutes.js"
-import cartRoutes from "./backend/routes/cartRoutes.js"
-import adminRoutes from "./backend/routes/adminRoutes.js"
+import userRoutes from "./routes/userRoutes.js"
+import productRoutes from "./routes/productRoutes.js"
+import recommendationRoutes from "./routes/recommendationRoutes.js"
+import cartRoutes from "./routes/cartRoutes.js"
+import adminRoutes from "./routes/adminRoutes.js"
 
 const app = express()
 const __filename = fileURLToPath(import.meta.url)
